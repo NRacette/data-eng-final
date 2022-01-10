@@ -61,7 +61,7 @@ def run():
         )
 
         product_views_tb = p | "Create views tb" >> beam.io.ReadFromBigQuery(
-            query="SELECT c.CUST_TIER_CODE as cust_tier_code, p.SKU as sku, COUNT(p.SKU) as total_no_of_product_views "
+            query="SELECT c.CUST_TIER_CODE as cust_tier_code, p.SKU as sku, COUNT(p.*) as total_no_of_product_views "
                   "FROM `york-cdf-start.final_input_data.customers` as c "
                   "JOIN `york-cdf-start.final_input_data.product_views` as p ON c.CUSTOMER_ID = p.CUSTOMER_ID "
                   "GROUP BY sku, cust_tier_code;",
