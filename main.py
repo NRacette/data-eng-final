@@ -3,7 +3,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.gcp.internal.clients import bigquery
 
 
-class TransformData(beam.DoFn):
+class TransformData(beam.DoFn):                                     #creating p transform to match data types to schema
     def process(self, element):
         element["cust_tier_code"] = str(element["cust_tier_code"])
         element["sku"] = int(element["sku"])
@@ -36,8 +36,6 @@ def run():
         save_main_session=True
     )
 
-
-
     product_views_out = bigquery.TableReference(
         projectId="york-cdf-start",
         datasetId="final_nick_racette",
@@ -52,14 +50,6 @@ def run():
 
     with beam.Pipeline(runner="DataflowRunner", options=pipeline_options) as p:
 
-        sales_amount_tb = p | "Create sales tb" >> beam.io.ReadFromBigQuery(
-            query="SELECT c.CUST_TIER_CODE as cust_tier_code, o.SKU as sku, SUM(o.ORDER_AMT) as total_sales_amount "
-                  "FROM `york-cdf-start.final_input_data.customers` as c "
-                  "JOIN `york-cdf-start.final_input_data.orders` as o ON c.CUSTOMER_ID = o.CUSTOMER_ID "
-                  "GROUP BY sku, cust_tier_code;",
-            use_standard_sql=True
-        )
-
         product_views_tb = p | "Create views tb" >> beam.io.ReadFromBigQuery(
             query="SELECT c.CUST_TIER_CODE as cust_tier_code, p.SKU as sku, COUNT(*) as total_no_of_product_views "
                   "FROM `york-cdf-start.final_input_data.customers` as c "
@@ -68,15 +58,16 @@ def run():
             use_standard_sql=True
         )
 
-        transform_sales = sales_amount_tb | "Change sales" >> beam.ParDo(TransformData())
-        transform_views = product_views_tb | "Change views" >> beam.ParDo(TransformData())
-
-        transform_sales | "Write sales amount" >> beam.io.WriteToBigQuery(
-            sales_amount_out,
-            schema=sales_amount_schema,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            custom_gcs_temp_location="gs://york_nrr/tmp"
+        sales_amount_tb = p | "Create sales tb" >> beam.io.ReadFromBigQuery(
+            query="SELECT c.CUST_TIER_CODE as cust_tier_code, o.SKU as sku, SUM(o.ORDER_AMT) as total_sales_amount "
+                  "FROM `york-cdf-start.final_input_data.customers` as c "
+                  "JOIN `york-cdf-start.final_input_data.orders` as o ON c.CUSTOMER_ID = o.CUSTOMER_ID "
+                  "GROUP BY sku, cust_tier_code;",
+            use_standard_sql=True
         )
+
+        transform_views = product_views_tb | "Change views" >> beam.ParDo(TransformData())
+        transform_sales = sales_amount_tb | "Change sales" >> beam.ParDo(TransformData())
 
         transform_views | "Write product views" >> beam.io.WriteToBigQuery(
             product_views_out,
@@ -85,8 +76,14 @@ def run():
             custom_gcs_temp_location="gs://york_nrr/tmp"
         )
 
+        transform_sales | "Write sales amount" >> beam.io.WriteToBigQuery(
+            sales_amount_out,
+            schema=sales_amount_schema,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            custom_gcs_temp_location="gs://york_nrr/tmp"
+        )
 
 
 if __name__ == "__main__":
     run()
-    print("done")
+    print("Job finished")
