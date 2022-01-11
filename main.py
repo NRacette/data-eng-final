@@ -32,7 +32,7 @@ def run():
         project="york-cdf-start",
         region="us-central1",
         staging_location="gs://york_temp_files/staging/",
-        job_name="nick-racette-final-job-test",
+        job_name="nick-racette-final-job",
         save_main_session=True
     )
 
@@ -53,7 +53,7 @@ def run():
     with beam.Pipeline(runner="DataflowRunner", options=pipeline_options) as p:
 
         sales_amount_tb = p | "Create sales tb" >> beam.io.ReadFromBigQuery(
-            query="SELECT c.CUST_TIER_CODE as cust_tier_code, o.SKU as sku, COUNT(o.ORDER_AMT) as total_sales_amount "
+            query="SELECT c.CUST_TIER_CODE as cust_tier_code, o.SKU as sku, SUM(o.ORDER_AMT) as total_sales_amount "
                   "FROM `york-cdf-start.final_input_data.customers` as c "
                   "JOIN `york-cdf-start.final_input_data.orders` as o ON c.CUSTOMER_ID = o.CUSTOMER_ID "
                   "GROUP BY sku, cust_tier_code;",
@@ -61,7 +61,7 @@ def run():
         )
 
         product_views_tb = p | "Create views tb" >> beam.io.ReadFromBigQuery(
-            query="SELECT c.CUST_TIER_CODE as cust_tier_code, p.SKU as sku, COUNT(p.*) as total_no_of_product_views "
+            query="SELECT c.CUST_TIER_CODE as cust_tier_code, p.SKU as sku, COUNT(*) as total_no_of_product_views "
                   "FROM `york-cdf-start.final_input_data.customers` as c "
                   "JOIN `york-cdf-start.final_input_data.product_views` as p ON c.CUSTOMER_ID = p.CUSTOMER_ID "
                   "GROUP BY sku, cust_tier_code;",
